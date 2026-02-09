@@ -12,12 +12,14 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [mode, setMode] = useState<"analysis" | "list">("analysis");
 
-  const handleAnalyze = async (file: File) => {
+  const handleAnalyze = async (file: File, sido?: string, sigungu?: string) => {
     setIsAnalyzing(true);
     setResult(null);
     try {
       const formData = new FormData();
       formData.append("image", file);
+      if (sido) formData.append("sido", sido);
+      if (sigungu) formData.append("sigungu", sigungu);
 
       const response = await fetch("/api/analyze", {
         method: "POST",

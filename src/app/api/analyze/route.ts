@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { searchFees } from "@/lib/fee-data";
+import { searchFees, getFeesByRegion, searchFeesInRegion } from "@/lib/fee-data";
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("image") as File;
+    const sido = formData.get("sido") as string;
+    const sigungu = formData.get("sigungu") as string;
 
     if (!file) {
       return NextResponse.json(
@@ -29,20 +31,42 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
+    // Prepare Region Context
+    let feeContext = "";
+    if (sido && sigungu) {
+        const regionFees = getFeesByRegion(sido, sigungu);
+        if (regionFees.length > 0) {
+            const feeList = regionFees.map(f => `- ${f.대형폐기물명} (${f.대형폐기물규격}): ${f.수수료}원`).join("\n");
+            feeContext = `
+            다음은 사용자가 선택한 지역(${sido} ${sigungu})의 대형폐기물 수수료 목록입니다:
+            ${feeList}
+            
+            위 목록을 참고하여 사진의 물건과 가장 일치하는 항목을 찾아주세요.
+            `;
+        }
+    }
+
     const prompt = `
       이 사진의 물건을 분석해서 다음 JSON 형식으로 응답해줘. 한국어로 작성해줘.
       
       {
         "itemName": "물건 이름 (예: 침대, 의자, 냉장고, 플라스틱 병)",
         "recyclable": true/false (재활용 분리수거함에 배출 가능하면 true, 대형폐기물 스티커 부착 필요하면 false),
-        "category": "물건 카테고리 (예: 가구, 가전, 플라스틱, 캔, 유리 등)",
+        "category": "물건 카테고리 (가구, 가전, 플라스틱, 캔, 유리 등. 대형폐기물인 경우 특히 중요)",
         "instructions": ["배출 방법 1", "배출 방법 2"],
-        "reason": "판단 이유 및 추가 설명"
+        "reason": "판단 이유 및 추가 설명",
+        "estimatedFee": { 
+            "amount": number (수수료 목록에서 찾은 금액. 없으면 null),
+            "matchedItem": "수수료 목록에서 찾은 품목명 (없으면 null)"
+        }
       }
 
       유의사항:
       - 대형폐기물(가구, 이불, 가방, 큰 가전 등)은 recyclable: false 로 설정.
       - itemName은 명확한 명사형으로 작성 (예: "플라스틱 의자" -> "의자").
+      - itemName에 불필요한 수식어구 제외.
+      
+      ${feeContext}
     `;
 
     const result = await model.generateContent([
@@ -77,22 +101,44 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // Fee lookup if applicable
+    // Post-processing for fees
     if (jsonResponse && !jsonResponse.recyclable) {
-        // Try searching by itemName first
-        let feeInfo = searchFees(jsonResponse.itemName);
-        
-        // If no result and category is available, try searching combinatorially or just fallback?
-        // For now, let's keep it simple. If itemName includes adjectives, searchFees handles exact substring match.
-        // We might want to remove "플라스틱" from "플라스틱 의자" if "의자" is the key.
-        // But searchFees does "itemName.includes(keyword) || keyword.includes(itemName)".
-        
-        if (feeInfo) {
+        // 1. Nationwide estimate (always provided as fallback/baseline)
+        const nationwideFee = searchFees(jsonResponse.itemName);
+        if (nationwideFee) {
             jsonResponse.feeRange = {
-                min: feeInfo.min,
-                max: feeInfo.max,
-                avg: feeInfo.avg
+                min: nationwideFee.min,
+                max: nationwideFee.max,
+                avg: nationwideFee.avg
             };
+        }
+
+        // 2. Region specific processing
+        if (sido && sigungu) {
+             // A. AI Estimated Match (Single Best Guess)
+             if (jsonResponse.estimatedFee && jsonResponse.estimatedFee.amount) {
+                 jsonResponse.aiFee = {
+                     대형폐기물명: jsonResponse.estimatedFee.matchedItem,
+                     대형폐기물규격: "AI 매칭 결과",
+                     수수료: String(jsonResponse.estimatedFee.amount),
+                     대형폐기물구분명: jsonResponse.category || "AI 자동분류"
+                 };
+             }
+
+             // B. JSON Search Results (List)
+             const specificFees = searchFeesInRegion(
+                 jsonResponse.itemName, 
+                 jsonResponse.category || "", 
+                 sido, 
+                 sigungu
+             );
+             
+             // Always return this list if region is selected
+             jsonResponse.regionFees = {
+                 sido,
+                 sigungu,
+                 fees: specificFees
+             };
         }
     }
 

@@ -97,8 +97,7 @@ export function getFeesByRegion(sido: string, sigungu: string) {
 }
 
 export function searchFees(keyword: string) {
-    // ... (existing implementation)
-    const records = loadAllData();
+  const records = loadAllData();
   
   // Clean up keyword (remove spaces, special chars for better matching)
   const normalizedKeyword = keyword.replace(/\s+/g, "");
@@ -131,4 +130,33 @@ export function searchFees(keyword: string) {
     count: matches.length,
     example: matches[0],
   };
+}
+
+export function searchFeesInRegion(keyword: string, category: string, sido: string, sigungu: string) {
+    const records = loadAllData();
+    const regionRecords = records.filter(
+        (record) => record.시도명 === sido && record.시군구명 === sigungu
+    );
+
+    if (regionRecords.length === 0) return [];
+
+    // Prioritize name match
+    const normalizedKeyword = keyword.replace(/\s+/g, "");
+    
+    // 1. Exact or partial name matches
+    let matches = regionRecords.filter((record) => {
+        const itemName = record.대형폐기물명.replace(/\s+/g, "");
+        return itemName.includes(normalizedKeyword) || normalizedKeyword.includes(itemName);
+    });
+
+    // 2. If weak name match, try category match
+    if (matches.length === 0 && category) {
+         matches = regionRecords.filter(item => 
+             item.대형폐기물구분명.includes(category) ||
+             (category.includes("가구") && item.대형폐기물구분명.includes("가구")) ||
+             (category.includes("가전") && item.대형폐기물구분명.includes("가전"))
+        );
+    }
+    
+    return matches;
 }

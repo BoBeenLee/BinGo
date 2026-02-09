@@ -1,19 +1,40 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Camera, Upload, X, Loader2 } from "lucide-react";
-import Image from "next/image";
+import { useState, useRef, useEffect } from "react";
+import { Camera, Upload, X, Loader2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ImageUploaderProps {
-  onAnalyze: (file: File) => Promise<void>;
+  onAnalyze: (file: File, sido?: string, sigungu?: string) => Promise<void>;
   isAnalyzing: boolean;
+}
+
+interface Region {
+  sido: string;
+  sigungu: string;
 }
 
 export function ImageUploader({ onAnalyze, isAnalyzing }: ImageUploaderProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Region state
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [selectedSido, setSelectedSido] = useState<string>("");
+  const [selectedSigungu, setSelectedSigungu] = useState<string>("");
+
+  useEffect(() => {
+    fetch("/api/regions")
+      .then((res) => res.json())
+      .then((data) => setRegions(data))
+      .catch((err) => console.error(err));
+  }, []);
+
+  const uniqueSidos = Array.from(new Set(regions.map((r) => r.sido)));
+  const availableSigungus = regions
+    .filter((r) => r.sido === selectedSido)
+    .map((r) => r.sigungu);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -37,12 +58,48 @@ export function ImageUploader({ onAnalyze, isAnalyzing }: ImageUploaderProps) {
 
   const handleAnalyzeClick = () => {
     if (file) {
-      onAnalyze(file);
+      onAnalyze(file, selectedSido, selectedSigungu);
     }
   };
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-6">
+    <div className="w-full max-w-md mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Region Selection (Optional) */}
+      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-700">
+            <MapPin className="w-4 h-4 text-blue-500" />
+            지역 선택 (선택 시 수수료 자동 분석)
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+            <select 
+                className="p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                value={selectedSido}
+                onChange={(e) => {
+                    setSelectedSido(e.target.value);
+                    setSelectedSigungu("");
+                }}
+                disabled={isAnalyzing}
+            >
+                <option value="">시/도 선택</option>
+                {uniqueSidos.map((sido) => (
+                    <option key={sido} value={sido}>{sido}</option>
+                ))}
+            </select>
+            <select 
+                className="p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 disabled:opacity-50"
+                value={selectedSigungu}
+                onChange={(e) => setSelectedSigungu(e.target.value)}
+                disabled={!selectedSido || isAnalyzing}
+            >
+                <option value="">시/군/구 선택</option>
+                {availableSigungus.map((sigungu) => (
+                    <option key={sigungu} value={sigungu}>{sigungu}</option>
+                ))}
+            </select>
+        </div>
+      </div>
+
       <input
         type="file"
         ref={fileInputRef}

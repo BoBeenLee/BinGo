@@ -14,6 +14,12 @@ export interface AnalysisResultData {
     max: number;
     avg: number;
   };
+  regionFees?: {
+    sido: string;
+    sigungu: string;
+    fees: FeeItem[];
+  };
+  aiFee?: FeeItem;
   reason?: string;
 }
 
@@ -36,9 +42,9 @@ interface FeeItem {
 
 export function AnalysisResult({ result, onReset }: AnalysisResultProps) {
   const [regions, setRegions] = useState<Region[]>([]);
-  const [selectedSido, setSelectedSido] = useState<string>("");
-  const [selectedSigungu, setSelectedSigungu] = useState<string>("");
-  const [specificFees, setSpecificFees] = useState<FeeItem[]>([]);
+  const [selectedSido, setSelectedSido] = useState<string>(result.regionFees?.sido || "");
+  const [selectedSigungu, setSelectedSigungu] = useState<string>(result.regionFees?.sigungu || "");
+  const [specificFees, setSpecificFees] = useState<FeeItem[]>(result.regionFees?.fees || []);
   const [loadingFees, setLoadingFees] = useState(false);
 
   useEffect(() => {
@@ -55,6 +61,16 @@ export function AnalysisResult({ result, onReset }: AnalysisResultProps) {
 
   useEffect(() => {
     const fetchSpecificFees = async () => {
+      // If we already have specific fees from the initial result and the selection hasn't changed, use them
+      if (
+          result.regionFees && 
+          selectedSido === result.regionFees.sido && 
+          selectedSigungu === result.regionFees.sigungu
+      ) {
+          setSpecificFees(result.regionFees.fees);
+          return;
+      }
+
       if (!selectedSido || !selectedSigungu) {
         setSpecificFees([]);
         return;
@@ -65,23 +81,17 @@ export function AnalysisResult({ result, onReset }: AnalysisResultProps) {
         const res = await fetch(`/api/fees?sido=${encodeURIComponent(selectedSido)}&sigungu=${encodeURIComponent(selectedSigungu)}`);
         const data: FeeItem[] = await res.json();
         
-        // Filter fees based on itemName or category
-        // First try to find items that include the itemName
         let filtered = data.filter(item => 
           item.대형폐기물명.includes(result.itemName) || 
-          result.itemName.includes(item.대형폐기물명) // In case result is "Plastic Chair" and fee item is "Chair"
+          result.itemName.includes(item.대형폐기물명)
         );
 
-        // If no direct matches, try matching by category if available
         if (filtered.length === 0 && result.category) {
            filtered = data.filter(item => 
              item.대형폐기물구분명.includes(result.category!) ||
              (result.category!.includes("가구") && item.대형폐기물구분명.includes("가구")) ||
              (result.category!.includes("가전") && item.대형폐기물구분명.includes("가전"))
            );
-           
-           // If still too many results (e.g. all furniture), maybe limit or show a message?
-           // For now, let's show them but limit to top 5-10 to avoid huge lists
         }
 
         setSpecificFees(filtered);
@@ -93,7 +103,7 @@ export function AnalysisResult({ result, onReset }: AnalysisResultProps) {
     };
 
     fetchSpecificFees();
-  }, [selectedSido, selectedSigungu, result.itemName, result.category]);
+  }, [selectedSido, selectedSigungu, result.itemName, result.category, result.regionFees]);
 
 
   return (
@@ -102,6 +112,7 @@ export function AnalysisResult({ result, onReset }: AnalysisResultProps) {
         "p-6 text-white text-center",
         result.recyclable ? "bg-green-500" : "bg-orange-500"
       )}>
+        {/* Header content same as before */}
         <div className="flex justify-center mb-4">
           {result.recyclable ? (
             <CheckCircle className="w-16 h-16" />
@@ -140,24 +151,40 @@ export function AnalysisResult({ result, onReset }: AnalysisResultProps) {
 
         {!result.recyclable && (
           <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl space-y-4">
-            <div className="flex items-center gap-2 text-orange-800 font-semibold">
+            <div className="flex items-center gap-2 text-orange-800 font-semibold mb-2">
               <Coins className="w-5 h-5" />
-              <h3>대형폐기물 수수료 확인</h3>
+              <h3>폐기물 수수료 확인</h3>
             </div>
             
-            {/* Generic Estimate */}
-            {result.feeRange && (
-              <div className="mb-2">
-                <p className="text-xs text-orange-600 mb-1">전국 평균 추정치</p>
-                <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-orange-600">
-                    {result.feeRange.min.toLocaleString()} ~ {result.feeRange.max.toLocaleString()}원
-                    </span>
+            {/* 1. AI Estimated Fee (Replaces Generic Estimate if available) */}
+            {result.aiFee ? (
+                <div className="mb-4 bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
+                    <p className="text-xs text-orange-600 mb-1 font-bold">AI 분석 예상 수수료 ({selectedSido})</p>
+                    <div className="flex justify-between items-center">
+                        <div>
+                             <p className="text-lg font-bold text-gray-900">{result.aiFee.대형폐기물명}</p>
+                             <p className="text-xs text-gray-500">규격: {result.aiFee.대형폐기물규격}</p>
+                        </div>
+                        <span className="text-2xl font-bold text-orange-600">
+                            {parseInt(result.aiFee.수수료).toLocaleString()}원
+                        </span>
+                    </div>
                 </div>
-              </div>
+            ) : (
+                /* Fallback to Generic Estimate */
+                result.feeRange && (
+                <div className="mb-4">
+                    <p className="text-xs text-orange-600 mb-1">전국 평균 추정치</p>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold text-orange-600">
+                        {result.feeRange.min.toLocaleString()} ~ {result.feeRange.max.toLocaleString()}원
+                        </span>
+                    </div>
+                </div>
+                )
             )}
 
-            {/* Region Selector */}
+            {/* 2. Region Selector & Full List */}
             <div className="border-t border-orange-200 pt-3">
                 <p className="text-sm font-medium text-orange-800 mb-2 flex items-center gap-1">
                     <MapPin className="w-3 h-3"/> 내 지역 정확한 수수료 찾기
@@ -195,6 +222,9 @@ export function AnalysisResult({ result, onReset }: AnalysisResultProps) {
 
                 {!loadingFees && selectedSido && selectedSigungu && (
                     <div className="bg-white rounded-lg border border-orange-100 overflow-hidden max-h-60 overflow-y-auto">
+                        <div className="p-2 bg-orange-100/50 text-xs font-semibold text-orange-800 border-b border-orange-100">
+                            '{result.itemName}' 관련 목록
+                        </div>
                         {specificFees.length > 0 ? (
                             <div className="divide-y divide-orange-50">
                                 {specificFees.map((fee, idx) => (
