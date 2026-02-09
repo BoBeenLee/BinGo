@@ -56,8 +56,8 @@ export async function POST(req: NextRequest) {
         "instructions": ["배출 방법 1", "배출 방법 2"],
         "reason": "판단 이유 및 추가 설명",
         "estimatedFee": { 
-            "amount": number (수수료 목록에서 찾은 금액. 없으면 null),
-            "matchedItem": "수수료 목록에서 찾은 품목명 (없으면 null)"
+            "amount": number (수수료 목록에서 찾은 금액 또는 목록 내 유사 품목의 금액. 없으면 null),
+            "matchedItem": "수수료 목록에서 찾은 품목명 (유사 품목인 경우 해당 품목명 기재)"
         }
       }
 
@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
       - 대형폐기물(가구, 이불, 가방, 큰 가전 등)은 recyclable: false 로 설정.
       - itemName은 명확한 명사형으로 작성 (예: "플라스틱 의자" -> "의자").
       - itemName에 불필요한 수식어구 제외.
+      - estimatedFee는 제공된 수수료 목록에서 우선적으로 찾되, 목록에 정확한 매칭이 없다면 제공된 목록 중 가장 유사한 품목의 수수료를 참고하여 입력해주세요. (일반 지식 기반 추정 지양)
       
       ${feeContext}
     `;
