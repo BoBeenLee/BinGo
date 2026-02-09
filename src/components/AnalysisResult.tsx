@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, AlertTriangle, XCircle, Info, Coins, MapPin } from "lucide-react";
+import { CheckCircle, AlertTriangle, XCircle, Info, Coins, MapPin, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface AnalysisResultData {
   itemName: string;
   recyclable: boolean;
+  wasteType?: "recyclable" | "general" | "bulky";
   category?: string;
   instructions: string[];
   feeRange?: {
@@ -105,24 +106,36 @@ export function AnalysisResult({ result, onReset }: AnalysisResultProps) {
     fetchSpecificFees();
   }, [selectedSido, selectedSigungu, result.itemName, result.category, result.regionFees]);
 
+  const getStatusColor = () => {
+      if (result.recyclable) return "bg-green-500";
+      if (result.wasteType === "general") return "bg-gray-500";
+      return "bg-orange-500";
+  };
+
+  const getStatusIcon = () => {
+    if (result.recyclable) return <CheckCircle className="w-16 h-16" />;
+    if (result.wasteType === "general") return <Trash2 className="w-16 h-16" />;
+    return <XCircle className="w-16 h-16" />;
+  };
+
+  const getStatusText = () => {
+    if (result.recyclable) return "재활용 가능";
+    if (result.wasteType === "general") return "일반 쓰레기 (종량제 봉투)";
+    return "대형폐기물 (신고 필요)";
+  };
 
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className={cn(
         "p-6 text-white text-center",
-        result.recyclable ? "bg-green-500" : "bg-orange-500"
+        getStatusColor()
       )}>
-        {/* Header content same as before */}
         <div className="flex justify-center mb-4">
-          {result.recyclable ? (
-            <CheckCircle className="w-16 h-16" />
-          ) : (
-            <XCircle className="w-16 h-16" />
-          )}
+            {getStatusIcon()}
         </div>
         <h2 className="text-2xl font-bold mb-1">{result.itemName}</h2>
         <p className="text-lg opacity-90">
-          {result.recyclable ? "재활용 가능" : "재활용 불가능 / 대형폐기물"}
+            {getStatusText()}
         </p>
         {result.category && (
           <span className="inline-block mt-2 px-3 py-1 bg-black/20 rounded-full text-sm">
@@ -149,14 +162,15 @@ export function AnalysisResult({ result, onReset }: AnalysisResultProps) {
           </ul>
         </div>
 
-        {!result.recyclable && (
+        {/* Show Fee Section Only for Bulky Waste */}
+        {!result.recyclable && result.wasteType !== "general" && (
           <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl space-y-4">
             <div className="flex items-center gap-2 text-orange-800 font-semibold mb-2">
               <Coins className="w-5 h-5" />
               <h3>폐기물 수수료 확인</h3>
             </div>
             
-            {/* 1. AI Estimated Fee (Replaces Generic Estimate if available) */}
+            {/* 1. AI Estimated Fee */}
             {result.aiFee ? (
                 <div className="mb-4 bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
                     <p className="text-xs text-orange-600 mb-1 font-bold">AI 분석 예상 수수료 ({selectedSido})</p>

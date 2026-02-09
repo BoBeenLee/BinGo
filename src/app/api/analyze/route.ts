@@ -50,8 +50,9 @@ export async function POST(req: NextRequest) {
       이 사진의 물건을 분석해서 다음 JSON 형식으로 응답해줘. 한국어로 작성해줘.
       
       {
+        "wasteType": "recyclable" | "general" | "bulky" (recyclable: 분리수거 가능, general: 종량제 봉투 배출, bulky: 대형폐기물 스티커 필요),
         "itemName": "물건 이름 (예: 침대, 의자, 냉장고, 플라스틱 병)",
-        "recyclable": true/false (재활용 분리수거함에 배출 가능하면 true, 대형폐기물 스티커 부착 필요하면 false),
+        "recyclable": true/false (wasteType이 'recyclable'이면 true, 아니면 false),
         "category": "물건 카테고리 (가구, 가전, 플라스틱, 캔, 유리 등. 대형폐기물인 경우 특히 중요)",
         "instructions": ["배출 방법 1", "배출 방법 2"],
         "reason": "판단 이유 및 추가 설명",
@@ -62,7 +63,9 @@ export async function POST(req: NextRequest) {
       }
 
       유의사항:
-      - 대형폐기물(가구, 이불, 가방, 큰 가전 등)은 recyclable: false 로 설정.
+      - 대형폐기물(가구, 이불, 가방, 큰 가전 등)은 wasteType: "bulky", recyclable: false 로 설정.
+      - 재활용이 불가능하지만 종량제 봉투에 버릴 수 있는 작은 일반 쓰레기(오염된 종이, 작은 플라스틱 조각 등)는 wasteType: "general", recyclable: false 로 설정.
+      - 재활용 분리수거함에 배출 가능한 깨끗한 품목은 wasteType: "recyclable", recyclable: true 로 설정.
       - itemName은 명확한 명사형으로 작성 (예: "플라스틱 의자" -> "의자").
       - itemName에 불필요한 수식어구 제외.
       - estimatedFee는 제공된 수수료 목록에서 우선적으로 찾되, 목록에 정확한 매칭이 없다면 제공된 목록 중 가장 유사한 품목의 수수료를 참고하여 입력해주세요. (일반 지식 기반 추정 지양)
@@ -103,7 +106,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Post-processing for fees
-    if (jsonResponse && !jsonResponse.recyclable) {
+    // Only search fees if it is explicitly bulky waste or strictly not recyclable (fallback)
+    const isBulky = jsonResponse && (jsonResponse.wasteType === "bulky" || (!jsonResponse.wasteType && !jsonResponse.recyclable));
+    
+    if (isBulky) {
         // 1. Nationwide estimate (always provided as fallback/baseline)
         const nationwideFee = searchFees(jsonResponse.itemName);
         if (nationwideFee) {
