@@ -14,8 +14,13 @@ interface FeeData {
   records: FeeRecord[];
 }
 
+// ... (imports remain same)
+
+// ... (FeeRecord and FeeData interfaces remain same)
+
 // Cache of all loaded records
 let cachedRecords: FeeRecord[] | null = null;
+let cachedRegions: { sido: string; sigungu: string }[] | null = null;
 
 function loadAllData(): FeeRecord[] {
   if (cachedRecords) return cachedRecords;
@@ -56,8 +61,44 @@ function loadAllData(): FeeRecord[] {
   }
 }
 
-export function searchFees(keyword: string) {
+export function getAvailableRegions() {
+  if (cachedRegions) return cachedRegions;
+
   const records = loadAllData();
+  const regions = new Set<string>();
+  const result: { sido: string; sigungu: string }[] = [];
+
+  records.forEach((record) => {
+    const key = `${record.시도명}|${record.시군구명}`;
+    if (!regions.has(key)) {
+      regions.add(key);
+      result.push({
+        sido: record.시도명,
+        sigungu: record.시군구명,
+      });
+    }
+  });
+
+  // Sort by Sido then Sigungu
+  result.sort((a, b) => {
+    if (a.sido !== b.sido) return a.sido.localeCompare(b.sido);
+    return a.sigungu.localeCompare(b.sigungu);
+  });
+
+  cachedRegions = result;
+  return result;
+}
+
+export function getFeesByRegion(sido: string, sigungu: string) {
+  const records = loadAllData();
+  return records.filter(
+    (record) => record.시도명 === sido && record.시군구명 === sigungu
+  );
+}
+
+export function searchFees(keyword: string) {
+    // ... (existing implementation)
+    const records = loadAllData();
   
   // Clean up keyword (remove spaces, special chars for better matching)
   const normalizedKeyword = keyword.replace(/\s+/g, "");

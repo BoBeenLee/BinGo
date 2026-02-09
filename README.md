@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BinGo - AI Recycling Assistant
+
+BinGo is a Next.js application that uses Google Gemini AI to help users recycle effectively and check bulky waste fees.
+
+## Features
+- **AI Image Analysis**: Identify items and get recycling instructions.
+- **Bulky Waste Fee Lookup**: Check estimated disposal fees for your region.
 
 ## Getting Started
 
-First, run the development server:
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2. **Environment Setup**
+   Create a `.env.local` file and add your Gemini API key:
+   ```bash
+   NEXT_PUBLIC_GEMINI_API_KEY=your_api_key_here
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. **Run Development Server**
+   ```bash
+   npm run dev
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Data Management
+The application uses JSON data in `data/regions/` for fee information.
+If you deployed to Vercel, ensure the `data` directory is included in the build or use a database for more persistent storage in the future.
+*Current implementation reads directly from the filesystem, which works in Next.js Server Components/API routes if the files are traced correctly.*
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+This project is ready for deployment on Vercel.
+1. Push to GitHub.
+2. Import project in Vercel.
+3. Add `NEXT_PUBLIC_GEMINI_API_KEY` to Vercel Environment Variables.
