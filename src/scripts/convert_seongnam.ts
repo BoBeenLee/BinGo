@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
 
 const sourceFile = "data/regions/경기도 성남시_대형폐기물 수거기준정보_20260116.csv";
 const outputFile = "data/regions/경기도_성남시.json";

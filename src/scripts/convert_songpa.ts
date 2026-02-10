@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
 
 const sourceFile = "data/regions/서울특별시_송파구_대형생활폐기물 수집·운반수수료 품목별 부과기준.csv";
 const outputFile = "data/regions/서울특별시_송파구.json";
