@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Camera, Upload, X, Loader2, MapPin } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeLocalStorage } from "@/lib/utils";
 
 interface ImageUploaderProps {
   onAnalyze: (file: File, sido?: string, sigungu?: string) => Promise<void>;
@@ -30,20 +30,20 @@ export function ImageUploader({ onAnalyze, isAnalyzing }: ImageUploaderProps) {
       .then((data) => setRegions(data))
       .catch((err) => console.error(err));
     
-    // Load from local storage
-    const savedSido = localStorage.getItem("bingo-sido");
-    const savedSigungu = localStorage.getItem("bingo-sigungu");
+// Load from local storage
+    const savedSido = safeLocalStorage.getItem("bingo-sido");
+    const savedSigungu = safeLocalStorage.getItem("bingo-sigungu");
     if (savedSido) setSelectedSido(savedSido);
     if (savedSigungu) setSelectedSigungu(savedSigungu);
   }, []);
 
   // Save to local storage
   useEffect(() => {
-      if (selectedSido) localStorage.setItem("bingo-sido", selectedSido);
-      else localStorage.removeItem("bingo-sido");
+      if (selectedSido) safeLocalStorage.setItem("bingo-sido", selectedSido);
+      else safeLocalStorage.removeItem("bingo-sido");
       
-      if (selectedSigungu) localStorage.setItem("bingo-sigungu", selectedSigungu);
-      else localStorage.removeItem("bingo-sigungu");
+      if (selectedSigungu) safeLocalStorage.setItem("bingo-sigungu", selectedSigungu);
+      else safeLocalStorage.removeItem("bingo-sigungu");
   }, [selectedSido, selectedSigungu]);
 
   const uniqueSidos = Array.from(new Set(regions.map((r) => r.sido)));
